@@ -6,7 +6,7 @@
 
 ## Overview
 
-This lab introduces you to serverless computing by creating an HTTP-triggered Azure Function. You will build a "Student Greeting API" that accepts a name parameter and returns a personalized JSON response.
+This lab introduces you to serverless computing by creating an HTTP-triggered Azure Function. You will build a **Text Analyzer API** that accepts text input and returns useful analytics including word count, character count, reading time, and more.
 
 **Learning Objectives:**
 - Create and configure an Azure Function App
@@ -36,16 +36,16 @@ A Function App is the container that hosts your serverless functions.
 
 ### 1.3 Configure Basic Settings
 
-| Setting | Value |
-|---------|-------|
-| Subscription | Your subscription |
-| Resource Group | Create new: `rg-serverless-lab` |
-| Function App name | `func-studentgreeting-[yourname]` (globally unique) |
-| Runtime stack | Python |
-| Version | 3.11 (latest) |
-| Region | Canada Central |
-| Operating System | Linux |
-| Hosting plan | Consumption (Serverless) |
+| Setting           | Value                                            |
+| ----------------- | ------------------------------------------------ |
+| Subscription      | Your subscription                                |
+| Resource Group    | Create new: `rg-serverless-lab`                  |
+| Function App name | `func-textanalyzer-[yourname]` (globally unique) |
+| Runtime stack     | Python                                           |
+| Version           | 3.11 (latest)                                    |
+| Region            | Canada Central                                   |
+| Operating System  | Linux                                            |
+| Hosting plan      | Consumption (Serverless)                         |
 
 ### 1.4 Configure Storage
 
@@ -72,7 +72,7 @@ A Function App is the container that hosts your serverless functions.
 1. Click **+ Create**
 2. Select **HTTP trigger**
 3. Configure:
-   - Name: `HttpTrigger_StudentGreeting`
+   - Name: `TextAnalyzer`
    - Authorization level: **Anonymous**
 4. Click **Create**
 
@@ -87,7 +87,7 @@ A Function App is the container that hosts your serverless functions.
 
 ### 3.1 Open the Code Editor
 
-1. Click on `HttpTrigger_StudentGreeting`
+1. Click on `TextAnalyzer`
 2. Click **Code + Test**
 
 ### 3.2 Default Code Structure
@@ -100,8 +100,8 @@ import logging
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
-@app.route(route="HttpTrigger_StudentGreeting")
-def HttpTrigger_StudentGreeting(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="TextAnalyzer")
+def TextAnalyzer(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
 
     name = req.params.get('name')
@@ -120,13 +120,13 @@ def HttpTrigger_StudentGreeting(req: func.HttpRequest) -> func.HttpResponse:
 ```
 
 **Key Components:**
-| Component | Purpose |
-|-----------|---------|
-| `@app.route()` | Defines the URL route that triggers the function |
-| `req: func.HttpRequest` | Incoming HTTP request object |
-| `func.HttpResponse` | Response returned to the caller |
-| `req.params.get()` | Retrieves query string parameters |
-| `req.get_json()` | Retrieves JSON from request body |
+| Component               | Purpose                                          |
+| ----------------------- | ------------------------------------------------ |
+| `@app.route()`          | Defines the URL route that triggers the function |
+| `req: func.HttpRequest` | Incoming HTTP request object                     |
+| `func.HttpResponse`     | Response returned to the caller                  |
+| `req.params.get()`      | Retrieves query string parameters                |
+| `req.get_json()`        | Retrieves JSON from request body                 |
 
 ### 3.3 Replace with Custom Code
 
@@ -136,43 +136,59 @@ Replace the default code with:
 import azure.functions as func
 import logging
 import json
+import re
 from datetime import datetime
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
-@app.route(route="HttpTrigger_StudentGreeting")
-def HttpTrigger_StudentGreeting(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Student Greeting API was called!')
+@app.route(route="TextAnalyzer")
+def TextAnalyzer(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Text Analyzer API was called!')
 
-    # Get the student's name from query parameter or request body
-    name = req.params.get('name')
-    course = req.params.get('course', 'CST8917')
+    # Get text from query parameter or request body
+    text = req.params.get('text')
 
-    if not name:
+    if not text:
         try:
             req_body = req.get_json()
-            name = req_body.get('name')
-            course = req_body.get('course', course)
+            text = req_body.get('text')
         except ValueError:
             pass
 
-    if name:
-        # Get current time for a personalized greeting
-        current_hour = datetime.utcnow().hour
+    if text:
+        # Perform text analysis
+        words = text.split()
+        word_count = len(words)
+        char_count = len(text)
+        char_count_no_spaces = len(text.replace(" ", ""))
+        sentence_count = len(re.findall(r'[.!?]+', text)) or 1
+        paragraph_count = len([p for p in text.split('\n\n') if p.strip()])
 
-        if current_hour < 12:
-            greeting = "Good morning"
-        elif current_hour < 17:
-            greeting = "Good afternoon"
-        else:
-            greeting = "Good evening"
+        # Calculate reading time (average 200 words per minute)
+        reading_time_minutes = round(word_count / 200, 1)
+
+        # Calculate average word length
+        avg_word_length = round(char_count_no_spaces / word_count, 1) if word_count > 0 else 0
+
+        # Find longest word
+        longest_word = max(words, key=len) if words else ""
 
         # Create response
         response_data = {
-            "message": f"{greeting}, {name}! Welcome to {course} - Serverless Applications!",
-            "timestamp": datetime.utcnow().isoformat(),
-            "tip": "You just called a serverless function! No servers to manage!",
-            "funFact": "This function only runs when you call it, saving resources and money!"
+            "analysis": {
+                "wordCount": word_count,
+                "characterCount": char_count,
+                "characterCountNoSpaces": char_count_no_spaces,
+                "sentenceCount": sentence_count,
+                "paragraphCount": paragraph_count,
+                "averageWordLength": avg_word_length,
+                "longestWord": longest_word,
+                "readingTimeMinutes": reading_time_minutes
+            },
+            "metadata": {
+                "analyzedAt": datetime.utcnow().isoformat(),
+                "textPreview": text[:100] + "..." if len(text) > 100 else text
+            }
         }
 
         return func.HttpResponse(
@@ -181,13 +197,13 @@ def HttpTrigger_StudentGreeting(req: func.HttpRequest) -> func.HttpResponse:
             status_code=200
         )
     else:
-        # Return helpful instructions if no name provided
+        # Return helpful instructions if no text provided
         instructions = {
-            "error": "No name provided",
+            "error": "No text provided",
             "howToUse": {
-                "option1": "Add ?name=YourName to the URL",
-                "option2": "Send a POST request with JSON body: {\"name\": \"YourName\"}",
-                "example": "https://your-function-url?name=Sam&course=CST8917"
+                "option1": "Add ?text=YourText to the URL",
+                "option2": "Send a POST request with JSON body: {\"text\": \"Your text here\"}",
+                "example": "https://your-function-url/api/TextAnalyzer?text=Hello world"
             }
         }
         return func.HttpResponse(
@@ -209,15 +225,26 @@ Click **Save** at the top of the editor.
 
 1. Click **Test/Run**
 2. Set HTTP method to **GET**
-3. Add query parameter: `name` = `YourName`
+3. Add query parameter: `text` = `Serverless computing is a cloud execution model. The cloud provider manages the infrastructure.`
 4. Click **Run**
 
 Expected response:
 ```json
 {
-  "message": "Good afternoon, YourName! Welcome to CST8917 - Serverless Applications!",
-  "timestamp": "2026-01-21T14:30:00.000000",
-  "tip": "You just called a serverless function!"
+  "analysis": {
+    "wordCount": 14,
+    "characterCount": 95,
+    "characterCountNoSpaces": 82,
+    "sentenceCount": 2,
+    "paragraphCount": 1,
+    "averageWordLength": 5.9,
+    "longestWord": "infrastructure.",
+    "readingTimeMinutes": 0.1
+  },
+  "metadata": {
+    "analyzedAt": "2026-01-21T14:30:00.000000",
+    "textPreview": "Serverless computing is a cloud execution model. The cloud provider manages the infrastructure."
+  }
 }
 ```
 
@@ -230,8 +257,21 @@ Expected response:
 
 Open the URL in a browser with parameters:
 ```
-https://func-studentgreeting-yourname.azurewebsites.net/api/HttpTrigger_StudentGreeting?name=Sam&course=CST8917
+https://func-textanalyzer-yourname.azurewebsites.net/api/TextAnalyzer?text=Azure Functions lets you run code without managing servers
 ```
+
+### 4.4 Test with the Provided .http File
+
+1. Open the `test-function.http` file in VS Code
+2. Install the **REST Client** extension if not already installed
+3. Replace `YOUR_FUNCTION_APP_NAME` in the `@baseUrl` variable with your function app name
+4. Click **Send Request** above any test case to execute it
+
+The file includes test cases for:
+- Simple GET requests with query parameters
+- POST requests with JSON body
+- Multi-paragraph text analysis
+- Error handling (no text provided)
 
 ---
 
@@ -249,7 +289,7 @@ https://func-studentgreeting-yourname.azurewebsites.net/api/HttpTrigger_StudentG
 ### 5.2 View Function-Level Metrics
 
 1. In the left menu, expand **Functions**
-2. Click on `HttpTrigger_StudentGreeting`
+2. Click on `TextAnalyzer`
 3. Click the **Metrics** tab
 4. Review the following charts:
    - **Total Execution Count**: All function invocations
@@ -281,7 +321,7 @@ To avoid charges:
 
 You have completed the following:
 - Created an Azure Function App with Consumption plan
-- Implemented an HTTP-triggered function in Python
+- Implemented an HTTP-triggered Text Analyzer API in Python
 - Tested the function via portal and browser
 - Monitored function executions
 

@@ -1,0 +1,36 @@
+### Text Analyzer API - Test Requests
+### Replace YOUR_FUNCTION_APP_NAME with your actual function app name
+
+@baseUrl = https://YOUR_FUNCTION_APP_NAME.azurewebsites.net/api/TextAnalyzer
+
+### Test 1: Simple GET request with short text
+GET {{baseUrl}}?text=Hello world this is a test
+
+### Test 2: GET request with a longer sentence
+GET {{baseUrl}}?text=Serverless computing is a cloud execution model. The cloud provider manages the infrastructure.
+
+### Test 3: POST request with JSON body
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "text": "Azure Functions is a serverless compute service. It lets you run event-triggered code without having to explicitly provision or manage infrastructure. You can use Azure Functions to build web APIs, respond to database changes, process IoT streams, and manage message queues."
+}
+
+### Test 4: POST request with multi-paragraph text
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "text": "Serverless computing allows developers to focus on writing code.\n\nThe cloud provider handles all infrastructure management tasks such as server provisioning, scaling, and maintenance.\n\nThis model is ideal for event-driven applications and microservices."
+}
+
+### Test 5: Error case - No text provided
+GET {{baseUrl}}
+
+### Test 6: POST request with empty body (error case)
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+}
