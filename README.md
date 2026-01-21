@@ -309,13 +309,13 @@ Here's a breakdown of how the code works, section by section:
 
 #### Imports Section
 
-| Import | What It Does |
-|--------|--------------|
+| Import            | What It Does                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------- |
 | `azure.functions` | The Azure Functions SDK - provides `HttpRequest`, `HttpResponse`, and `FunctionApp` classes |
-| `logging` | Lets us write messages to Azure's log system for debugging |
-| `json` | Converts Python dictionaries to JSON strings (and vice versa) |
-| `re` | Regular expressions for pattern matching (used to count sentences) |
-| `datetime` | Gets the current date and time |
+| `logging`         | Lets us write messages to Azure's log system for debugging                                  |
+| `json`            | Converts Python dictionaries to JSON strings (and vice versa)                               |
+| `re`              | Regular expressions for pattern matching (used to count sentences)                          |
+| `datetime`        | Gets the current date and time                                                              |
 
 #### Function Flow
 
@@ -352,27 +352,6 @@ Here's a breakdown of how the code works, section by section:
 │   (200 OK)              │
 └─────────────────────────┘
 ```
-
-#### Key Python Concepts Used
-
-| Concept | Example in Code | Explanation |
-|---------|-----------------|-------------|
-| **List Comprehension** | `[p for p in text.split('\n\n') if p.strip()]` | A compact way to create a list by looping and filtering |
-| **Ternary Operator** | `x if condition else y` | One-line if-else statement |
-| **Dictionary** | `{"key": value}` | Stores data as key-value pairs (becomes JSON) |
-| **String Methods** | `text.split()`, `text.replace()` | Built-in functions that operate on strings |
-| **Regular Expressions** | `re.findall(r'[.!?]+', text)` | Pattern matching to find punctuation |
-
-#### HTTP Status Codes Used
-
-| Code | Meaning | When Used |
-|------|---------|-----------|
-| `200` | OK | Text was analyzed successfully |
-| `400` | Bad Request | No text was provided by the client |
-
-### 3.5 Save
-
-Click **Save** at the top of the editor.
 
 ---
 
