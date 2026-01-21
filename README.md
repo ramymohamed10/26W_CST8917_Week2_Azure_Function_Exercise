@@ -260,18 +260,33 @@ Open the URL in a browser with parameters:
 https://func-textanalyzer-yourname.azurewebsites.net/api/TextAnalyzer?text=Azure Functions lets you run code without managing servers
 ```
 
-### 4.4 Test with the Provided .http File
+### 4.4 Test with the .http File
 
 1. Open the `test-function.http` file in VS Code
 2. Install the **REST Client** extension if not already installed
-3. Replace `YOUR_FUNCTION_APP_NAME` in the `@baseUrl` variable with your function app name
+3. Update the `@baseUrl` variable with your function URL
 4. Click **Send Request** above any test case to execute it
 
-The file includes test cases for:
-- Simple GET requests with query parameters
-- POST requests with JSON body
-- Multi-paragraph text analysis
-- Error handling (no text provided)
+### 4.5 Test with the Web Client
+
+First, enable CORS on your Function App:
+
+1. In the Azure Portal, go to your Function App
+2. In the left menu under **API**, click **CORS**
+3. Add `*` to the Allowed Origins list
+4. Click **Save**
+
+Then use the client:
+
+1. Open the `client.html` file in your browser
+2. Enter your Function URL (from Step 4.2)
+3. Type or paste text to analyze
+4. Click **Analyze Text**
+
+The client displays:
+- Visual flow diagram showing the request lifecycle
+- Analysis results in a dashboard format
+- Raw JSON response from the function
 
 ---
 
