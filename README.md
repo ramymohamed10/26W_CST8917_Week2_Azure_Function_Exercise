@@ -133,47 +133,119 @@ def TextAnalyzer(req: func.HttpRequest) -> func.HttpResponse:
 Replace the default code with:
 
 ```python
-import azure.functions as func
-import logging
-import json
-import re
-from datetime import datetime
+# =============================================================================
+# IMPORTS - Libraries we need for our function
+# =============================================================================
+import azure.functions as func  # Azure Functions SDK - required for all Azure Functions
+import logging                  # Built-in Python library for printing log messages
+import json                     # Built-in Python library for working with JSON data
+import re                       # Built-in Python library for Regular Expressions (pattern matching)
+from datetime import datetime   # Built-in Python library for working with dates and times
 
+# =============================================================================
+# CREATE THE FUNCTION APP
+# =============================================================================
+# This creates our Function App with anonymous access (no authentication required)
+# Think of this as the "container" that holds all our functions
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
+# =============================================================================
+# DEFINE THE TEXT ANALYZER FUNCTION
+# =============================================================================
+# The @app.route decorator tells Azure: "When someone visits /api/TextAnalyzer, run this function"
+# This is called a "decorator" - it adds extra behavior to our function
 @app.route(route="TextAnalyzer")
 def TextAnalyzer(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    This function analyzes text and returns statistics about it.
+
+    Parameters:
+        req: The incoming HTTP request (contains the text to analyze)
+
+    Returns:
+        func.HttpResponse: JSON response with analysis results
+    """
+
+    # Log a message so we can see in Azure Portal when the function is called
     logging.info('Text Analyzer API was called!')
 
-    # Get text from query parameter or request body
+    # =========================================================================
+    # STEP 1: GET THE TEXT INPUT
+    # =========================================================================
+    # First, try to get 'text' from the URL query string
+    # Example URL: /api/TextAnalyzer?text=Hello world
+    # req.params.get('text') would return "Hello world"
     text = req.params.get('text')
 
+    # If text wasn't in the URL, try to get it from the request body (JSON)
     if not text:
         try:
+            # Try to parse the request body as JSON
+            # Example body: {"text": "Hello world"}
             req_body = req.get_json()
             text = req_body.get('text')
         except ValueError:
+            # If the body isn't valid JSON, just continue (text stays None)
             pass
 
+    # =========================================================================
+    # STEP 2: ANALYZE THE TEXT (if text was provided)
+    # =========================================================================
     if text:
-        # Perform text analysis
+        # ----- Word Analysis -----
+        # split() breaks the text into a list of words
+        # "Hello world" becomes ["Hello", "world"]
         words = text.split()
+
+        # len() counts items in a list
+        # ["Hello", "world"] has length 2
         word_count = len(words)
+
+        # ----- Character Analysis -----
+        # len() on a string counts characters (including spaces)
+        # "Hello world" has 11 characters
         char_count = len(text)
+
+        # replace(" ", "") removes all spaces, then we count
+        # "Hello world" becomes "Helloworld" (10 characters)
         char_count_no_spaces = len(text.replace(" ", ""))
+
+        # ----- Sentence Analysis -----
+        # re.findall() finds all matches of a pattern
+        # r'[.!?]+' means: find any sequence of periods, exclamation marks, or question marks
+        # "Hello! How are you?" returns ['!', '?'] (2 sentences)
+        # The "or 1" means: if no punctuation found, assume at least 1 sentence
         sentence_count = len(re.findall(r'[.!?]+', text)) or 1
+
+        # ----- Paragraph Analysis -----
+        # Paragraphs are separated by blank lines (two newlines: \n\n)
+        # split('\n\n') breaks text at blank lines
+        # We filter out empty paragraphs with "if p.strip()"
+        # strip() removes whitespace - empty strings become "" which is False
         paragraph_count = len([p for p in text.split('\n\n') if p.strip()])
 
-        # Calculate reading time (average 200 words per minute)
+        # ----- Reading Time Calculation -----
+        # Average reading speed is about 200 words per minute
+        # round(x, 1) rounds to 1 decimal place
+        # 100 words / 200 wpm = 0.5 minutes
         reading_time_minutes = round(word_count / 200, 1)
 
-        # Calculate average word length
+        # ----- Average Word Length -----
+        # Total characters (no spaces) divided by number of words
+        # We check "if word_count > 0" to avoid dividing by zero
         avg_word_length = round(char_count_no_spaces / word_count, 1) if word_count > 0 else 0
 
-        # Find longest word
+        # ----- Find Longest Word -----
+        # max() finds the largest item
+        # key=len means "compare words by their length"
+        # max(["Hi", "Hello", "Hey"], key=len) returns "Hello"
         longest_word = max(words, key=len) if words else ""
 
-        # Create response
+        # =====================================================================
+        # STEP 3: BUILD THE RESPONSE
+        # =====================================================================
+        # Create a Python dictionary with all our analysis results
+        # This will be converted to JSON format
         response_data = {
             "analysis": {
                 "wordCount": word_count,
@@ -186,18 +258,33 @@ def TextAnalyzer(req: func.HttpRequest) -> func.HttpResponse:
                 "readingTimeMinutes": reading_time_minutes
             },
             "metadata": {
+                # datetime.utcnow() gets current time, isoformat() converts to string
+                # Example: "2024-01-15T14:30:00.000000"
                 "analyzedAt": datetime.utcnow().isoformat(),
+
+                # Show first 100 characters of text as a preview
+                # The syntax: value_if_true if condition else value_if_false
+                # This is called a "ternary operator" or "conditional expression"
                 "textPreview": text[:100] + "..." if len(text) > 100 else text
             }
         }
 
+        # Return a successful HTTP response
+        # json.dumps() converts Python dictionary to JSON string
+        # indent=2 makes the JSON nicely formatted (2 spaces per indent level)
+        # mimetype tells the browser "this is JSON data"
+        # status_code=200 means "OK - Success"
         return func.HttpResponse(
             json.dumps(response_data, indent=2),
             mimetype="application/json",
             status_code=200
         )
+
+    # =========================================================================
+    # STEP 4: HANDLE MISSING TEXT (Error Response)
+    # =========================================================================
     else:
-        # Return helpful instructions if no text provided
+        # If no text was provided, return helpful instructions
         instructions = {
             "error": "No text provided",
             "howToUse": {
@@ -206,6 +293,9 @@ def TextAnalyzer(req: func.HttpRequest) -> func.HttpResponse:
                 "example": "https://your-function-url/api/TextAnalyzer?text=Hello world"
             }
         }
+
+        # Return an error response
+        # status_code=400 means "Bad Request - client made an error"
         return func.HttpResponse(
             json.dumps(instructions, indent=2),
             mimetype="application/json",
@@ -213,7 +303,74 @@ def TextAnalyzer(req: func.HttpRequest) -> func.HttpResponse:
         )
 ```
 
-### 3.4 Save
+### 3.4 Code Explanation
+
+Here's a breakdown of how the code works, section by section:
+
+#### Imports Section
+
+| Import | What It Does |
+|--------|--------------|
+| `azure.functions` | The Azure Functions SDK - provides `HttpRequest`, `HttpResponse`, and `FunctionApp` classes |
+| `logging` | Lets us write messages to Azure's log system for debugging |
+| `json` | Converts Python dictionaries to JSON strings (and vice versa) |
+| `re` | Regular expressions for pattern matching (used to count sentences) |
+| `datetime` | Gets the current date and time |
+
+#### Function Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    HTTP Request Arrives                         │
+│            (e.g., /api/TextAnalyzer?text=Hello)                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Step 1: Try to Get Text Input                      │
+│  • First check URL query string: ?text=...                      │
+│  • If not found, check JSON body: {"text": "..."}               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              │                               │
+        Text Found?                     No Text Found
+              │                               │
+              ▼                               ▼
+┌─────────────────────────┐     ┌─────────────────────────┐
+│   Step 2: Analyze       │     │   Step 4: Return        │
+│   • Count words         │     │   Error Response        │
+│   • Count characters    │     │   (400 Bad Request)     │
+│   • Count sentences     │     │   with instructions     │
+│   • Calculate metrics   │     └─────────────────────────┘
+└─────────────────────────┘
+              │
+              ▼
+┌─────────────────────────┐
+│   Step 3: Build and     │
+│   Return JSON Response  │
+│   (200 OK)              │
+└─────────────────────────┘
+```
+
+#### Key Python Concepts Used
+
+| Concept | Example in Code | Explanation |
+|---------|-----------------|-------------|
+| **List Comprehension** | `[p for p in text.split('\n\n') if p.strip()]` | A compact way to create a list by looping and filtering |
+| **Ternary Operator** | `x if condition else y` | One-line if-else statement |
+| **Dictionary** | `{"key": value}` | Stores data as key-value pairs (becomes JSON) |
+| **String Methods** | `text.split()`, `text.replace()` | Built-in functions that operate on strings |
+| **Regular Expressions** | `re.findall(r'[.!?]+', text)` | Pattern matching to find punctuation |
+
+#### HTTP Status Codes Used
+
+| Code | Meaning | When Used |
+|------|---------|-----------|
+| `200` | OK | Text was analyzed successfully |
+| `400` | Bad Request | No text was provided by the client |
+
+### 3.5 Save
 
 Click **Save** at the top of the editor.
 
